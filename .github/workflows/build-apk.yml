@@ -1,4 +1,4 @@
-name: Build Gateway (Debug & Fix)
+name: Build Gateway (Manual Link Fix)
 on:
   workflow_dispatch:
 
@@ -9,7 +9,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 1. SSH 에러 방지 및 형제 모듈 클론 (HTTPS 강제)
       - name: Clone Peer Modules
         run: |
           git config --global url."https://github.com/".insteadOf git@github.com:
@@ -17,7 +16,6 @@ jobs:
           git clone https://github.com/telon-org/react-native-sip2.git
           git clone https://github.com/telon-org/react-native-replace-dialer.git
 
-      # 2. 환경 설정
       - name: Setup Java & Node
         uses: actions/setup-java@v4
         with:
@@ -28,30 +26,25 @@ jobs:
         with:
           node-version: 18
 
-      # 3. 의존성 강제 설치 및 누락 파일 체크
-      - name: Install Dependencies
+      - name: Install Dependencies & Debug
         run: |
           cd telon-gateway-app
-          # 기존 캐시 무시하고 강제 설치
-          npm install --legacy-peer-deps
+          # 1. 의존성 설치 (스크립트 강제 실행)
+          npm install --legacy-peer-deps --foreground-scripts
           
-          # [핵심] 만약 에러 난 파일이 없으면 수동으로라도 설치 시도
-          if [ ! -f node_modules/@react-native-community/cli-platform-android/native_modules.gradle ]; then
-            echo "Critical file missing! Retrying specific package install..."
+          # 2. 누락된 파일 강제 확인 및 디버깅용 리스트 출력
+          echo "=== Checking for missing gradle script ==="
+          find node_modules -name "native_modules.gradle" || echo "FILE NOT FOUND"
+          
+          # 3. 만약 파일이 없으면 해당 패키지만 다시 설치
+          if [ ! -d "node_modules/@react-native-community/cli-platform-android" ]; then
             npm install @react-native-community/cli-platform-android --legacy-peer-deps
           fi
 
-      # 4. Android 빌드 실행 (에러 발생 시 상세 로그 출력)
       - name: Build APK
         run: |
           cd telon-gateway-app/android
+          # Gradle에게 노드 모듈 경로를 환경변수로 명시
+          export NODE_MODULES_PATH=$GITHUB_WORKSPACE/telon-gateway-app/node_modules
           chmod +x gradlew
-          # 빌드 에러 상세 확인을 위해 --stacktrace 추가
           ./gradlew assembleDebug --stacktrace
-
-      # 5. 결과물 업로드
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: Gateway-Final-APK
-          path: telon-gateway-app/android/app/build/outputs/apk/debug/*.apk
