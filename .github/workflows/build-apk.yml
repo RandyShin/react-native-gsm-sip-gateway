@@ -1,4 +1,4 @@
-name: Build Gateway (Manual Link Fix)
+name: Build Gateway (Final Link Fix)
 on:
   workflow_dispatch:
 
@@ -26,25 +26,21 @@ jobs:
         with:
           node-version: 18
 
-      - name: Install Dependencies & Debug
+      - name: Force Install Dependencies
         run: |
           cd telon-gateway-app
-          # 1. 의존성 설치 (스크립트 강제 실행)
-          npm install --legacy-peer-deps --foreground-scripts
+          # 1. 의존성 강제 설치 (에러 무시하고 끝까지 설치 시도)
+          npm install --legacy-peer-deps || npm install --legacy-peer-deps --force
           
-          # 2. 누락된 파일 강제 확인 및 디버깅용 리스트 출력
-          echo "=== Checking for missing gradle script ==="
-          find node_modules -name "native_modules.gradle" || echo "FILE NOT FOUND"
+          # 2. [핵심] 누락된 CLI 패키지 수동 추가 설치
+          npm install @react-native-community/cli-platform-android --legacy-peer-deps
           
-          # 3. 만약 파일이 없으면 해당 패키지만 다시 설치
-          if [ ! -d "node_modules/@react-native-community/cli-platform-android" ]; then
-            npm install @react-native-community/cli-platform-android --legacy-peer-deps
-          fi
+          # 3. 파일 존재 여부 최종 확인 (디버깅용)
+          ls -R node_modules/@react-native-community/cli-platform-android/native_modules.gradle || echo "FILE_STILL_MISSING"
 
       - name: Build APK
         run: |
           cd telon-gateway-app/android
-          # Gradle에게 노드 모듈 경로를 환경변수로 명시
-          export NODE_MODULES_PATH=$GITHUB_WORKSPACE/telon-gateway-app/node_modules
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
+          # 빌드 에러 추적을 위해 --info 모드로 실행
+          ./gradlew assembleDebug --info
