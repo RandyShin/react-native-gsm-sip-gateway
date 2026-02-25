@@ -14,13 +14,19 @@ jobs:
         with:
           path: workspace/telon-gsm-sip-gateway
 
-      # 2. 형제 폴더(Peer Modules) 구조로 의존성 클론
+      # 2. Peer Modules를 "메인 레포 폴더 내부"에 클론 (file: 경로와 일치)
       - name: Clone Peer Modules
         run: |
-          cd workspace
+          cd workspace/telon-gsm-sip-gateway
           git clone https://github.com/telon-org/react-native-tele.git
           git clone https://github.com/telon-org/react-native-sip2.git
           git clone https://github.com/telon-org/react-native-replace-dialer.git
+
+      # (선택) 경로 확인용 - 문제 재발 방지
+      - name: Debug Paths
+        run: |
+          ls -al workspace/telon-gsm-sip-gateway
+          ls -al workspace/telon-gsm-sip-gateway/react-native-replace-dialer || true
 
       # 3. 환경 설정
       - name: Setup Java
@@ -28,18 +34,20 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-      
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 18
+          cache: 'yarn'
+          cache-dependency-path: workspace/telon-gsm-sip-gateway/telon-gateway-app/yarn.lock
 
-      # 4. 의존성 설치 (Yarn 사용 및 하위 폴더 직접 진입)
+      # 4. 의존성 설치 (Yarn)
       - name: Install Dependencies (Yarn)
         run: |
           cd workspace/telon-gsm-sip-gateway/telon-gateway-app
           npm install -g yarn
-          yarn install
+          yarn install --frozen-lockfile
 
       # 5. Android APK 빌드
       - name: Build Android APK
