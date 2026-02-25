@@ -1,4 +1,4 @@
-name: Build Gateway (Real Final)
+name: Build Gateway (SSH Fix)
 on: [workflow_dispatch]
 
 jobs:
@@ -8,24 +8,25 @@ jobs:
       - name: Setup Workspace
         run: mkdir -p workspace
 
-      # 1. 메인 앱 다운로드
+      # 1. 메인 앱 체크아웃
       - name: Checkout Main App
         uses: actions/checkout@v4
         with:
           path: workspace/telon-gsm-sip-gateway
 
-      # 2. 라이브러리들을 '메인 앱 폴더 안'으로 다운로드 (경로 수정)
-      - name: Clone Peer Modules inside Repo
+      # 2. SSH 에러 방지를 위한 HTTPS 강제 전환 설정
+      - name: Force HTTPS for Git
+        run: git config --global url."https://github.com/".insteadOf git@github.com:
+
+      # 3. 라이브러리들을 내부 폴더로 클론
+      - name: Clone Peer Modules
         run: |
           cd workspace/telon-gsm-sip-gateway
           git clone https://github.com/telon-org/react-native-tele.git
           git clone https://github.com/telon-org/react-native-sip2.git
           git clone https://github.com/telon-org/react-native-replace-dialer.git
-          
-          echo "=== File Structure Check ==="
-          ls -F
 
-      # 3. 자바 & 노드 설정
+      # 4. 자바 & 노드 설정
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -37,23 +38,23 @@ jobs:
         with:
           node-version: 18
 
-      # 4. 의존성 설치 (Yarn 사용)
+      # 5. 의존성 설치 (Yarn 사용)
       - name: Install Dependencies
         run: |
           cd workspace/telon-gsm-sip-gateway/telon-gateway-app
           npm install -g yarn
-          yarn install
+          yarn install --network-timeout 100000
 
-      # 5. 빌드 실행
+      # 6. APK 빌드 실행
       - name: Build APK
         run: |
           cd workspace/telon-gsm-sip-gateway/telon-gateway-app/android
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      # 6. APK 파일 업로드
+      # 7. 완성된 APK 업로드
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Gateway-APK
+          name: Gateway-Success-APK
           path: workspace/telon-gsm-sip-gateway/telon-gateway-app/android/app/build/outputs/apk/debug/*.apk
