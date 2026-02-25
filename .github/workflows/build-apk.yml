@@ -5,21 +5,20 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      # 1. 메인 앱 체크아웃 (현재 폴더에 바로 풀기)
       - name: Checkout Main App
         uses: actions/checkout@v4
-        with:
-          path: gateway-repo # 폴더명을 명확하게 지정
 
+      # 2. 필수 의존성 모듈들을 같은 레벨에 클론 (폴더 구조 유지)
       - name: Clone Dependencies
         run: |
-          # 메인 앱과 동일한 선상에 의존성 모듈들을 클론합니다.
+          cd ..
           git clone https://github.com/telon-org/react-native-tele.git
           git clone https://github.com/telon-org/react-native-sip2.git
           git clone https://github.com/telon-org/react-native-replace-dialer.git
-          
-          # 현재 폴더 구조를 로그에 출력 (에러 발생 시 확인용)
-          ls -R
+          ls -d */ # 폴더들이 제대로 생겼는지 확인
 
+      # 3. 자바 및 노드 환경 설정 (최신 v4 사용)
       - name: Setup Java & Node.js
         uses: actions/setup-java@v4
         with:
@@ -31,21 +30,21 @@ jobs:
         with:
           node-version: 18
 
+      # 4. 의존성 설치 (경로 에러 방지를 위해 현재 위치에서 실행)
       - name: Install Dependencies
         run: |
-          cd gateway-repo
-          # 만약 package.json이 없다면 여기서 에러가 나도록 설정
-          if [ ! -f package.json ]; then echo "Error: package.json not found!"; exit 1; fi
           npm install --legacy-peer-deps
 
+      # 5. 안드로이드 APK 빌드
       - name: Build Android Debug APK
         run: |
-          cd gateway-repo/android
+          cd android
           chmod +x gradlew
           ./gradlew assembleDebug
 
+      # 6. 생성된 APK 파일 업로드 (v4 사용)
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Gateway-Debug-APK
-          path: gateway-repo/android/app/build/outputs/apk/debug/*.apk
+          path: android/app/build/outputs/apk/debug/*.apk
