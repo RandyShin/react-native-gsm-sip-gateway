@@ -1,5 +1,5 @@
 name: Build GSM-SIP-Gateway APK
-on: [workflow_dispatch] # 수동 실행 버튼 활성화
+on: [workflow_dispatch]
 
 jobs:
   build:
@@ -8,15 +8,19 @@ jobs:
       - name: Checkout Main App
         uses: actions/checkout@v4
         with:
-          path: main-app
+          path: gateway-repo # 폴더명을 명확하게 지정
 
-      - name: Clone Dependencies # 동일 폴더 구조 생성을 위해 필수 모듈 복제
+      - name: Clone Dependencies
         run: |
+          # 메인 앱과 동일한 선상에 의존성 모듈들을 클론합니다.
           git clone https://github.com/telon-org/react-native-tele.git
           git clone https://github.com/telon-org/react-native-sip2.git
           git clone https://github.com/telon-org/react-native-replace-dialer.git
+          
+          # 현재 폴더 구조를 로그에 출력 (에러 발생 시 확인용)
+          ls -R
 
-      - name: Setup Java
+      - name: Setup Java & Node.js
         uses: actions/setup-java@v4
         with:
           java-version: '17'
@@ -29,12 +33,14 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          cd main-app
-          npm install
+          cd gateway-repo
+          # 만약 package.json이 없다면 여기서 에러가 나도록 설정
+          if [ ! -f package.json ]; then echo "Error: package.json not found!"; exit 1; fi
+          npm install --legacy-peer-deps
 
       - name: Build Android Debug APK
         run: |
-          cd main-app/android
+          cd gateway-repo/android
           chmod +x gradlew
           ./gradlew assembleDebug
 
@@ -42,4 +48,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Gateway-Debug-APK
-          path: main-app/android/app/build/outputs/apk/debug/*.apk
+          path: gateway-repo/android/app/build/outputs/apk/debug/*.apk
