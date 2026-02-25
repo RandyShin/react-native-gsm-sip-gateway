@@ -1,22 +1,24 @@
-name: Build GSM-SIP-Gateway APK (FINAL)
+name: Build GSM-SIP-Gateway (STABLE)
 on: [workflow_dispatch]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      # 1. 환경 초기화 및 폴더 구조 생성
-      - name: Setup Workspace
+      # 1. 메인 소스 코드 가져오기 (가장 최신 v4 사용)
+      - name: Checkout Main App
+        uses: actions/checkout@v4
+
+      # 2. 필수 의존성 모듈들을 상위 폴더에 클론 (경로 충돌 방지)
+      - name: Clone Peer Dependencies
         run: |
-          mkdir build_folder
-          cd build_folder
-          # 메인 앱과 의존성 모듈들을 동일 선상에 클론합니다.
-          git clone https://github.com/telon-org/react-native-gsm-sip-gateway.git main-app
+          cd ..
           git clone https://github.com/telon-org/react-native-tele.git
           git clone https://github.com/telon-org/react-native-sip2.git
           git clone https://github.com/telon-org/react-native-replace-dialer.git
+          cd - # 다시 메인 폴더로 복귀
 
-      # 2. 자바 및 노드 환경 설정 (최신 v4 사용으로 보안 에러 방지)
+      # 3. 개발 환경 설정 (모두 v4 최신 버전 적용)
       - name: Setup Environment
         uses: actions/setup-java@v4
         with:
@@ -28,18 +30,17 @@ jobs:
         with:
           node-version: 18
 
-      # 3. 의존성 설치 및 빌드
+      # 4. 라이브러리 설치 및 빌드
       - name: Install and Build
         run: |
-          cd build_folder/main-app
           npm install --legacy-peer-deps
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      # 4. 결과물 업로드
+      # 5. 완성된 APK 저장
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Gateway-Success-APK
-          path: build_folder/main-app/android/app/build/outputs/apk/debug/*.apk
+          name: Gateway-Final-APK
+          path: android/app/build/outputs/apk/debug/*.apk
